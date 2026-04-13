@@ -1,24 +1,35 @@
 from flask import Flask, request, jsonify
-import os
+import base64
+from openai import OpenAI
 
 app = Flask(__name__)
 
-@app.route("/")
-def home():
-    return "AI Car API is running ✔"
+client = OpenAI(api_key="YOUR_OPENAI_API_KEY")
 
 @app.route("/predict", methods=["POST"])
 def predict():
-    data = request.json.get("image", "")
 
-    return jsonify({
-        "brand": "Toyota",
-        "model": "Camry",
-        "category": "GL",
-        "color": "White",
-        "year": "2026"
-    })
+    image = request.json.get("image")
 
-if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 10000))
-    app.run(host="0.0.0.0", port=port)
+    response = client.chat.completions.create(
+        model="gpt-4o-mini",
+        messages=[
+            {
+                "role": "user",
+                "content": [
+                    {
+                        "type": "text",
+                        "text": "حلل السيارة في الصورة وأعطني: brand, model, category, color, year"
+                    },
+                    {
+                        "type": "image_url",
+                        "image_url": {
+                            "url": image
+                        }
+                    }
+                ]
+            }
+        ]
+    )
+
+    return jsonify(response.choices[0].message.content)
