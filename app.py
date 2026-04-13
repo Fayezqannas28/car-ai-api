@@ -5,7 +5,6 @@ import json
 
 app = Flask(__name__)
 
-# 🔑 OpenAI API Key من Render Environment Variables
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
 @app.route("/")
@@ -14,7 +13,6 @@ def home():
 
 @app.route("/predict", methods=["POST"])
 def predict():
-
     try:
         data = request.get_json()
         image = data.get("image")
@@ -22,58 +20,38 @@ def predict():
         if not image:
             return jsonify({"error": "No image provided"}), 400
 
-        # 🧠 إرسال الصورة لـ OpenAI Vision
-        response = client.chat.completions.create(
+        response = client.responses.create(
             model="gpt-4o-mini",
-            messages=[
-                {
-                    "role": "user",
-                    "content": [
-                        {
-                            "type": "text",
-                            "text": """
-حلل السيارة في الصورة وأعد فقط JSON بدون شرح بهذا الشكل:
+            input=[{
+                "role": "user",
+                "content": [
+                    {"type": "input_text",
+                     "text": """حلل السيارة وأرجع JSON فقط:
 {
-  "brand": "Toyota",
-  "model": "Camry",
-  "category": "Sedan / SUV / Pickup",
-  "color": "White",
-  "year": "2026"
-}
-إذا لم تعرف اكتب Unknown
-"""
-                        },
-                        {
-                            "type": "image_url",
-                            "image_url": {
-                                "url": image
-                            }
-                        }
-                    ]
-                }
-            ]
+"brand":"",
+"model":"",
+"category":"",
+"color":"",
+"year":""
+}""" },
+                    {
+                        "type": "input_image",
+                        "image_url": image
+                    }
+                ]
+            }]
         )
 
-        content = response.choices[0].message.content
+        content = response.output_text
 
-        # 🧹 تنظيف الناتج (مهم جداً)
-        content = content.replace("```json", "").replace("```", "").strip()
+        content = content.replace("```json","").replace("```","").strip()
 
-        try:
-            result = json.loads(content)
-        except:
-            # لو OpenAI رجع نص غير JSON
-            result = {
-                "raw": content,
-                "error": "invalid_json_from_ai"
-            }
+        result = json.loads(content)
 
         return jsonify(result)
 
     except Exception as e:
-        return jsonify({
-            "error": str(e)
-        }), 500
+        return jsonify({"error": str(e)}), 500
 
 
 if __name__ == "__main__":
